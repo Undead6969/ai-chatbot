@@ -2,6 +2,7 @@ import { geolocation } from "@vercel/functions";
 import {
   convertToModelMessages,
   createUIMessageStream,
+  createAgentUIStreamResponse,
   JsonToSseTransformStream,
   smoothStream,
   stepCountIs,
@@ -26,6 +27,7 @@ import { createDocument } from "@/lib/ai/tools/create-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
+import { getLeaAgent } from "@/lib/ai/agent/lea";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
@@ -171,6 +173,42 @@ export async function POST(request: Request) {
         },
       ],
     });
+
+    // Use Lea Agent if enabled (check environment variable or use by default)
+    const useLeaAgent = process.env.USE_LEA_AGENT !== "false"; // Default to true
+
+    // Use agent for all models, not just chat-model
+    if (useLeaAgent) {
+      try {
+        const agent = await getLeaAgent(selectedChatModel);
+        
+        // Convert messages to agent format (simple text extraction)
+        const agentMessages = uiMessages.map((msg) => {
+          const textParts = msg.parts
+            .filter((part) => part.type === "text")
+            .map((part) => (part as { type: "text"; text: string }).text)
+            .join("");
+          
+          return {
+            role: msg.role as "user" | "assistant",
+            content: textParts,
+          };
+        });
+
+        // Use createAgentUIStreamResponse for AI SDK 6
+        return createAgentUIStreamResponse({
+          agent,
+          messages: agentMessages,
+        });
+      } catch (error) {
+        console.error("Lea agent error, falling back to standard chat:", error);
+        // Log the full error for debugging
+        if (error instanceof Error) {
+          console.error("Error details:", error.message, error.stack);
+        }
+        // Fall through to standard implementation
+      }
+    }
 
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });

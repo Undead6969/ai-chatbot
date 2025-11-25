@@ -57,6 +57,20 @@
       "when": 1757362773211,
       "tag": "0007_flowery_ben_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1764053943000,
+      "tag": "0008_superb_tana_nile",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1764059523512,
+      "tag": "0009_shiny_black_crow",
+      "breakpoints": true
     }
   ]
 }

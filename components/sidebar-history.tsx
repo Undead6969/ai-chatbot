@@ -116,12 +116,12 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const hasReachedEnd = paginatedChatHistories
-    ? paginatedChatHistories.some((page) => page.hasMore === false)
+    ? paginatedChatHistories.some((page) => page && page.hasMore === false)
     : false;
 
   const hasEmptyChatHistory = paginatedChatHistories
-    ? paginatedChatHistories.every((page) => page.chats.length === 0)
-    : false;
+    ? paginatedChatHistories.every((page) => page && page.chats && page.chats.length === 0)
+    : true;
 
   const handleDelete = () => {
     const deletePromise = fetch(`/api/chat?id=${deleteId}`, {
@@ -212,9 +212,11 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
           <SidebarMenu>
             {paginatedChatHistories &&
               (() => {
-                const chatsFromHistory = paginatedChatHistories.flatMap(
-                  (paginatedChatHistory) => paginatedChatHistory.chats
-                );
+                const chatsFromHistory = paginatedChatHistories
+                  .filter((page) => page && page.chats)
+                  .flatMap(
+                    (paginatedChatHistory) => paginatedChatHistory.chats
+                  );
 
                 const groupedChats = groupChatsByDate(chatsFromHistory);
 

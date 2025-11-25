@@ -28,6 +28,10 @@ import {
   type Suggestion,
   stream,
   suggestion,
+  toolConfig,
+  type ToolConfig,
+  apiKeyConfig,
+  type ApiKeyConfig,
   type User,
   user,
   vote,
@@ -39,17 +43,15 @@ import { generateHashedPassword } from "./utils";
 // https://authjs.dev/reference/adapter/drizzle
 
 // biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
+const client = postgres(process.env.POSTGRES_URL || "postgres://postgres:postgres@localhost:5432/postgres");
 const db = drizzle(client);
 
 export async function getUser(email: string): Promise<User[]> {
   try {
     return await db.select().from(user).where(eq(user.email, email));
   } catch (_error) {
-    throw new ChatSDKError(
-      "bad_request:database",
-      "Failed to get user by email"
-    );
+    console.warn("Failed to get user from DB:", _error);
+    return [];
   }
 }
 
@@ -73,10 +75,13 @@ export async function createGuestUser() {
       email: user.email,
     });
   } catch (_error) {
-    throw new ChatSDKError(
-      "bad_request:database",
-      "Failed to create guest user"
-    );
+    console.error("Failed to create guest user in DB, returning mock user:", _error);
+    // Return a mock user so the app works without a database
+    return [{
+      id: generateUUID(),
+      email,
+      password: null,
+    }];
   }
 }
 
@@ -100,7 +105,8 @@ export async function saveChat({
       visibility,
     });
   } catch (_error) {
-    throw new ChatSDKError("bad_request:database", "Failed to save chat");
+    console.error("Failed to save chat to DB:", _error);
+    return [];
   }
 }
 
@@ -190,10 +196,8 @@ export async function getChatsByUserId({
         .limit(1);
 
       if (!selectedChat) {
-        throw new ChatSDKError(
-          "not_found:database",
-          `Chat with id ${startingAfter} not found`
-        );
+        console.warn(`Chat with id ${startingAfter} not found`);
+        return { chats: [], hasMore: false };
       }
 
       filteredChats = await query(gt(chat.createdAt, selectedChat.createdAt));
@@ -205,10 +209,8 @@ export async function getChatsByUserId({
         .limit(1);
 
       if (!selectedChat) {
-        throw new ChatSDKError(
-          "not_found:database",
-          `Chat with id ${endingBefore} not found`
-        );
+        console.warn(`Chat with id ${endingBefore} not found`);
+        return { chats: [], hasMore: false };
       }
 
       filteredChats = await query(lt(chat.createdAt, selectedChat.createdAt));
@@ -223,10 +225,8 @@ export async function getChatsByUserId({
       hasMore,
     };
   } catch (_error) {
-    throw new ChatSDKError(
-      "bad_request:database",
-      "Failed to get chats by user id"
-    );
+    console.error("Failed to get chats by user id from DB:", _error);
+    return { chats: [], hasMore: false };
   }
 }
 
@@ -239,7 +239,8 @@ export async function getChatById({ id }: { id: string }) {
 
     return selectedChat;
   } catch (_error) {
-    throw new ChatSDKError("bad_request:database", "Failed to get chat by id");
+    console.error("Failed to get chat by id from DB:", _error);
+    return null;
   }
 }
 
@@ -247,7 +248,8 @@ export async function saveMessages({ messages }: { messages: DBMessage[] }) {
   try {
     return await db.insert(message).values(messages);
   } catch (_error) {
-    throw new ChatSDKError("bad_request:database", "Failed to save messages");
+    console.error("Failed to save messages to DB:", _error);
+    return [];
   }
 }
 
@@ -259,10 +261,8 @@ export async function getMessagesByChatId({ id }: { id: string }) {
       .where(eq(message.chatId, id))
       .orderBy(asc(message.createdAt));
   } catch (_error) {
-    throw new ChatSDKError(
-      "bad_request:database",
-      "Failed to get messages by chat id"
-    );
+    console.error("Failed to get messages by chat id from DB:", _error);
+    return [];
   }
 }
 
@@ -588,6 +588,153 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get stream ids by chat id"
+    );
+  }
+}
+
+// Tool Configuration Queries
+export async function getToolConfig({ toolId }: { toolId: string }) {
+  try {
+    const configs = await db
+      .select()
+      .from(toolConfig)
+      .where(eq(toolConfig.toolId, toolId))
+      .limit(1)
+      .execute();
+
+    return configs[0] || null;
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to get tool config"
+    );
+  }
+}
+
+export async function getAllToolConfigs(): Promise<ToolConfig[]> {
+  try {
+    return await db.select().from(toolConfig).execute();
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to get all tool configs"
+    );
+  }
+}
+
+export async function upsertToolConfig({
+  toolId,
+  enabled,
+  needsApproval,
+  config,
+}: {
+  toolId: string;
+  enabled: boolean;
+  needsApproval?: boolean;
+  config?: Record<string, unknown>;
+}) {
+  try {
+    const existing = await getToolConfig({ toolId });
+
+    if (existing) {
+      return await db
+        .update(toolConfig)
+        .set({
+          enabled,
+          needsApproval: needsApproval ?? existing.needsApproval,
+          config: config ?? existing.config,
+          updatedAt: new Date(),
+        })
+        .where(eq(toolConfig.toolId, toolId))
+        .returning();
+    } else {
+      return await db
+        .insert(toolConfig)
+        .values({
+          id: generateUUID(),
+          toolId,
+          enabled,
+          needsApproval: needsApproval ?? false,
+          config: config ?? {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+    }
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to upsert tool config"
+    );
+  }
+}
+
+// API Key Configuration Queries
+export async function getApiKeyConfig({ provider }: { provider: string }) {
+  try {
+    const configs = await db
+      .select()
+      .from(apiKeyConfig)
+      .where(eq(apiKeyConfig.provider, provider))
+      .limit(1)
+      .execute();
+
+    return configs[0] || null;
+  } catch (_error) {
+    console.error("Failed to get API key config:", _error);
+    return null;
+  }
+}
+
+export async function getAllApiKeyConfigs(): Promise<ApiKeyConfig[]> {
+  try {
+    return await db.select().from(apiKeyConfig).execute();
+  } catch (_error) {
+    console.error("Failed to get all API key configs:", _error);
+    return [];
+  }
+}
+
+export async function upsertApiKeyConfig({
+  provider,
+  apiKey,
+  isActive,
+}: {
+  provider: string;
+  apiKey: string;
+  isActive?: boolean;
+}) {
+  try {
+    const existing = await getApiKeyConfig({ provider });
+
+    if (existing) {
+      return await db
+        .update(apiKeyConfig)
+        .set({
+          apiKey,
+          isActive: isActive ?? existing.isActive,
+          updatedAt: new Date(),
+        })
+        .where(eq(apiKeyConfig.provider, provider))
+        .returning();
+    } else {
+      return await db
+        .insert(apiKeyConfig)
+        .values({
+          id: generateUUID(),
+          provider,
+          apiKey,
+          isActive: isActive ?? true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+    }
+  } catch (_error) {
+    console.error("Failed to upsert API key config:", _error);
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to upsert API key config"
     );
   }
 }

@@ -17,6 +17,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "./elements/tool";
+import { ToolApproval } from "./elements/tool-approval";
 import { SparklesIcon } from "./icons";
 import { MessageActions } from "./message-actions";
 import { MessageEditor } from "./message-editor";
@@ -32,7 +33,8 @@ const PurePreviewMessage = ({
   setMessages,
   regenerate,
   isReadonly,
-  requiresScrollPadding: _requiresScrollPadding,
+  requiresScrollPadding,
+  addToolApprovalResponse,
 }: {
   chatId: string;
   message: ChatMessage;
@@ -42,6 +44,7 @@ const PurePreviewMessage = ({
   regenerate: UseChatHelpers<ChatMessage>["regenerate"];
   isReadonly: boolean;
   requiresScrollPadding: boolean;
+  addToolApprovalResponse?: (response: { id: string; approved: boolean }) => void;
 }) => {
   const [mode, setMode] = useState<"view" | "edit">("view");
 
@@ -168,6 +171,17 @@ const PurePreviewMessage = ({
                 <Tool defaultOpen={true} key={toolCallId}>
                   <ToolHeader state={state} type="tool-getWeather" />
                   <ToolContent>
+                    {state === "approval-requested" && addToolApprovalResponse && (
+                      <ToolApproval
+                        toolPart={part}
+                        onApprove={(approved) => {
+                          const approvalId = (part as any).approval?.id;
+                          if (approvalId) {
+                            addToolApprovalResponse({ id: approvalId, approved });
+                          }
+                        }}
+                      />
+                    )}
                     {state === "input-available" && (
                       <ToolInput input={part.input} />
                     )}
@@ -175,6 +189,61 @@ const PurePreviewMessage = ({
                       <ToolOutput
                         errorText={undefined}
                         output={<Weather weatherAtLocation={part.output} />}
+                      />
+                    )}
+                  </ToolContent>
+                </Tool>
+              );
+            }
+
+            // Handle Lea agent tools (filesystem, codeExecution, search, analysis)
+            // Use type assertion since these tools aren't in the ChatTools type yet
+            const toolType = type as string;
+            if (
+              toolType === "tool-filesystem" ||
+              toolType === "tool-codeExecution" ||
+              toolType === "tool-search" ||
+              toolType === "tool-analysis"
+            ) {
+              const toolPart = part as any;
+              const { toolCallId, state } = toolPart;
+
+              return (
+                <Tool defaultOpen={true} key={toolCallId}>
+                  <ToolHeader state={state} type={toolType} />
+                  <ToolContent>
+                    {state === "approval-requested" && addToolApprovalResponse && (
+                      <ToolApproval
+                        toolPart={part}
+                        onApprove={(approved) => {
+                          const approvalId = toolPart.approval?.id;
+                          if (approvalId) {
+                            addToolApprovalResponse({ id: approvalId, approved });
+                          }
+                        }}
+                      />
+                    )}
+                    {state === "input-available" && toolPart.input && (
+                      <ToolInput input={toolPart.input} />
+                    )}
+                    {state === "output-available" && (
+                      <ToolOutput
+                        errorText={toolPart.errorText}
+                        output={
+                          toolPart.output ? (
+                            <div className="whitespace-pre-wrap text-sm">
+                              {typeof toolPart.output === "string"
+                                ? toolPart.output
+                                : JSON.stringify(toolPart.output, null, 2)}
+                            </div>
+                          ) : null
+                        }
+                      />
+                    )}
+                    {state === "output-error" && (
+                      <ToolOutput
+                        errorText={toolPart.errorText}
+                        output={null}
                       />
                     )}
                   </ToolContent>

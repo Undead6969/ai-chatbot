@@ -19,6 +19,7 @@ type MessagesProps = {
   isReadonly: boolean;
   isArtifactVisible: boolean;
   selectedModelId: string;
+  addToolApprovalResponse?: (response: { id: string; approved: boolean }) => void;
 };
 
 function PureMessages({
@@ -29,7 +30,8 @@ function PureMessages({
   setMessages,
   regenerate,
   isReadonly,
-  selectedModelId: _selectedModelId,
+  selectedModelId,
+  addToolApprovalResponse,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -54,6 +56,7 @@ function PureMessages({
 
           {messages.map((message, index) => (
             <PreviewMessage
+              addToolApprovalResponse={addToolApprovalResponse}
               chatId={chatId}
               isLoading={
                 status === "streaming" && messages.length - 1 === index

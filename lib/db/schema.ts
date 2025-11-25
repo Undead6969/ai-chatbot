@@ -171,3 +171,24 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+export const toolConfig = pgTable("ToolConfig", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  toolId: varchar("toolId", { length: 64 }).notNull().unique(),
+  enabled: boolean("enabled").notNull().default(true),
+  needsApproval: boolean("needsApproval").notNull().default(false),
+  config: jsonb("config").$type<Record<string, unknown>>(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const apiKeyConfig = pgTable("ApiKeyConfig", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  provider: varchar("provider", { length: 64 }).notNull().unique(),
+  apiKey: text("apiKey").notNull(), // In production, this should be encrypted
+  isActive: boolean("isActive").notNull().default(true),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type ApiKeyConfig = InferSelectModel<typeof apiKeyConfig>;
