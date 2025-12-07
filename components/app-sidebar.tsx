@@ -64,17 +64,17 @@ export function AppSidebar({ user }: { user: User | undefined }) {
           <SidebarMenu>
             <div className="flex flex-row items-center justify-between">
               <div className="flex flex-row items-center gap-3">
-                <Link
-                  className="flex flex-row items-center gap-3"
-                  href="/"
-                  onClick={() => {
-                    setOpenMobile(false);
-                  }}
-                >
-                  <span className="cursor-pointer rounded-md px-2 font-semibold text-lg hover:bg-muted">
+              <Link
+                className="flex flex-row items-center gap-3"
+                href="/"
+                onClick={() => {
+                  setOpenMobile(false);
+                }}
+              >
+                <span className="cursor-pointer rounded-md px-2 font-semibold text-lg hover:bg-muted">
                     Lea
-                  </span>
-                </Link>
+                </span>
+              </Link>
                 {user && (
                   <Link
                     className="text-xs text-muted-foreground hover:text-foreground"

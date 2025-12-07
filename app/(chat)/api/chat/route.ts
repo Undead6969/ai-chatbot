@@ -103,11 +103,13 @@ export async function POST(request: Request) {
       message,
       selectedChatModel,
       selectedVisibilityType,
+      mode = "coding",
     }: {
       id: string;
       message: ChatMessage;
       selectedChatModel: ChatModel["id"];
       selectedVisibilityType: VisibilityType;
+      mode?: "coding" | "browser" | "cli";
     } = requestBody;
 
     const session = await auth();
@@ -124,6 +126,18 @@ export async function POST(request: Request) {
     });
 
     if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
+      return new ChatSDKError("rate_limit:chat").toResponse();
+    }
+
+    // Simple per-mode guard (best-effort, based on total count)
+    const perModeCaps: Record<string, number> = {
+      coding: 120,
+      browser: 80,
+      cli: 60,
+      auto: 120,
+    };
+    const modeCap = perModeCaps[mode] ?? perModeCaps.auto;
+    if (messageCount > modeCap) {
       return new ChatSDKError("rate_limit:chat").toResponse();
     }
 
@@ -180,20 +194,20 @@ export async function POST(request: Request) {
     // Use agent for all models, not just chat-model
     if (useLeaAgent) {
       try {
-        const agent = await getLeaAgent(selectedChatModel);
-        
         // Convert messages to agent format (simple text extraction)
         const agentMessages = uiMessages.map((msg) => {
           const textParts = msg.parts
             .filter((part) => part.type === "text")
             .map((part) => (part as { type: "text"; text: string }).text)
             .join("");
-          
+
           return {
             role: msg.role as "user" | "assistant",
             content: textParts,
           };
         });
+
+        const agent = await getLeaAgent(selectedChatModel, agentMessages, mode);
 
         // Use createAgentUIStreamResponse for AI SDK 6
         return createAgentUIStreamResponse({

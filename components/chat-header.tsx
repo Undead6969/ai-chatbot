@@ -14,10 +14,14 @@ function PureChatHeader({
   chatId,
   selectedVisibilityType,
   isReadonly,
+  mode,
+  onModeChange,
 }: {
   chatId: string;
   selectedVisibilityType: VisibilityType;
   isReadonly: boolean;
+  mode: "coding" | "browser" | "cli" | "auto";
+  onModeChange: (mode: "coding" | "browser" | "cli" | "auto") => void;
 }) {
   const router = useRouter();
   const { open } = useSidebar();
@@ -49,6 +53,20 @@ function PureChatHeader({
           selectedVisibilityType={selectedVisibilityType}
         />
       )}
+
+      <div className="order-4 ml-auto flex items-center gap-2 rounded-md border px-2 py-1 text-xs md:order-3">
+        <span className="text-muted-foreground">Mode</span>
+        <select
+          className="bg-transparent text-foreground outline-none"
+          value={mode}
+          onChange={(e) => onModeChange(e.target.value as "coding" | "browser" | "cli" | "auto")}
+        >
+          <option value="auto">Auto</option>
+          <option value="coding">Coding</option>
+          <option value="browser">Browser</option>
+          <option value="cli">CLI</option>
+        </select>
+      </div>
 
       <Button
         asChild

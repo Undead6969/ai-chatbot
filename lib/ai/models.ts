@@ -72,6 +72,12 @@ export const chatModels: ChatModel[] = [
     description: "Fast and efficient Google model",
     provider: "Google",
   },
+  {
+    id: "google-gemini-3-pro",
+    name: "Gemini 3 Pro",
+    description: "Advanced multimodal model (aliased to latest Pro if 3 Pro unavailable)",
+    provider: "Google",
+  },
   // Mistral Models
   {
     id: "mistral-large",

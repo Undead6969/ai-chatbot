@@ -25,6 +25,7 @@ import { ChatSDKError } from "@/lib/errors";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { fetcher, fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
+import { selectRoutedModel, type RoutedModel } from "@/lib/ai/routing";
 import { Artifact } from "./artifact";
 import { useDataStream } from "./data-stream-provider";
 import { Messages } from "./messages";
@@ -76,6 +77,11 @@ export function Chat({
   const [showCreditCardAlert, setShowCreditCardAlert] = useState(false);
   const [currentModelId, setCurrentModelId] = useState(initialChatModel);
   const currentModelIdRef = useRef(currentModelId);
+  const [routeInfo, setRouteInfo] = useState<RoutedModel>({
+    modelId: initialChatModel,
+    reason: "initial",
+  });
+  const [mode, setMode] = useState<"coding" | "browser" | "cli" | "auto">("auto");
 
   useEffect(() => {
     currentModelIdRef.current = currentModelId;
@@ -99,12 +105,31 @@ export function Chat({
       api: "/api/chat",
       fetch: fetchWithErrorHandlers,
       prepareSendMessagesRequest(request) {
+        const hasVisionInput =
+          request.messages.some((msg) =>
+            (msg as ChatMessage).parts?.some(
+              (p: any) => p.type === "file" && p.mediaType?.startsWith("image"),
+            ),
+          ) || attachments.some((a) => a.mediaType?.startsWith("image"));
+
+        const routed = selectRoutedModel({
+          requestedModelId: currentModelIdRef.current,
+          messages: request.messages as ChatMessage[],
+          hasVisionInput,
+          forceMode: mode === "auto" ? undefined : mode,
+        });
+
+        currentModelIdRef.current = routed.modelId;
+        setCurrentModelId(routed.modelId);
+        setRouteInfo(routed);
+
         return {
           body: {
             id: request.id,
             message: request.messages.at(-1),
-            selectedChatModel: currentModelIdRef.current,
+            selectedChatModel: routed.modelId,
             selectedVisibilityType: visibilityType,
+            mode,
             ...request.body,
           },
         };
@@ -174,8 +199,14 @@ export function Chat({
         <ChatHeader
           chatId={id}
           isReadonly={isReadonly}
+          mode={mode}
+          onModeChange={setMode}
           selectedVisibilityType={initialVisibilityType}
         />
+        <div className="px-3 pb-2 text-xs text-muted-foreground md:px-4">
+          <span className="font-semibold">Model</span>: {routeInfo.modelId} ({routeInfo.reason})
+          <span className="ml-2 text-muted-foreground">Mode: {mode}</span>
+        </div>
 
         <Messages
           addToolApprovalResponse={addToolApprovalResponse}
@@ -184,7 +215,7 @@ export function Chat({
           isReadonly={isReadonly}
           messages={messages}
           regenerate={regenerate}
-          selectedModelId={initialChatModel}
+          selectedModelId={currentModelId}
           setMessages={setMessages}
           status={status}
           votes={votes}
