@@ -23,6 +23,7 @@ export function selectRoutedModel({
     requestedModelId &&
     requestedModelId !== "chat-model" &&
     requestedModelId !== "auto" &&
+    requestedModelId !== "auto-model" &&
     requestedModelId !== "google-gemini-3-pro";
   if (userChosen) {
     return { modelId: requestedModelId, reason: "user-selected" };
@@ -45,7 +46,7 @@ export function selectRoutedModel({
   }
 
   if (forceMode === "cli") {
-    return { modelId: "google-gemini-3-pro", reason: "cli-mode" };
+    return { modelId: "openai-gpt-4.1", reason: "cli-mode" };
   }
 
   if (hasVisionInput) {
@@ -53,9 +54,9 @@ export function selectRoutedModel({
   }
 
   if (hasReasoningSignal) {
-    return { modelId: "google-gemini-3-pro", reason: "reasoning" };
+    return { modelId: "openai-gpt-4.1", reason: "reasoning" };
   }
 
-  return { modelId: "google-gemini-3-pro", reason: "fast" };
+  return { modelId: "google-gemini-2-flash", reason: "fast" };
 }
 

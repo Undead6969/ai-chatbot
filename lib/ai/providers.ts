@@ -57,6 +57,9 @@ function initializeProviders() {
       const { openai } = openaiModule;
       languageModels["openai-gpt-4o"] = openai("gpt-4o", { apiKey: openaiKey });
       languageModels["openai-gpt-4o-mini"] = openai("gpt-4o-mini", { apiKey: openaiKey });
+      languageModels["openai-gpt-4.1"] = openai("gpt-4.1", { apiKey: openaiKey });
+      languageModels["openai-gpt-4.1-mini"] = openai("gpt-4.1-mini", { apiKey: openaiKey });
+      languageModels["openai-o3-mini"] = openai("o3-mini", { apiKey: openaiKey });
     } catch (error) {
       console.warn("OpenAI provider not available:", error);
     }
@@ -71,6 +74,8 @@ function initializeProviders() {
       languageModels["anthropic-claude-opus-4"] = anthropic("claude-opus-4-1", { apiKey: anthropicKey });
       languageModels["anthropic-claude-sonnet-4"] = anthropic("claude-sonnet-4-0", { apiKey: anthropicKey });
       languageModels["anthropic-claude-haiku"] = anthropic("claude-3-5-haiku-latest", { apiKey: anthropicKey });
+      languageModels["anthropic-claude-3.5-sonnet"] = anthropic("claude-3-5-sonnet-latest", { apiKey: anthropicKey });
+      languageModels["anthropic-claude-3.5-haiku"] = anthropic("claude-3-5-haiku-latest", { apiKey: anthropicKey });
     } catch (error) {
       console.warn("Anthropic provider not available:", error);
     }

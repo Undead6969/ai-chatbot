@@ -26,6 +26,8 @@ const TOOLS = [
   { id: "shellTask", name: "Shell Tasks", description: "Sandboxed shell tasks (approval required)", icon: "🖥️" },
   { id: "adapterCall", name: "Adapters", description: "MCP-style external app adapters", icon: "🧩" },
   { id: "browserUseTask", name: "Browser Use Cloud", description: "Chromium automation via Browser Use Cloud", icon: "🛰️" },
+  { id: "deepResearch", name: "Deep Research", description: "Multi-hit research with search provider", icon: "🔎" },
+  { id: "shopResearch", name: "Shop Research", description: "Product research via search provider", icon: "🛒" },
 ] as const;
 
 const PROVIDERS = [

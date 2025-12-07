@@ -11,7 +11,13 @@ import { leaSystemPrompt } from "@/lib/ai/prompts/lea-system";
 import { leaBrowserPrompt } from "@/lib/ai/prompts/lea-browser";
 import { leaCodingPrompt } from "@/lib/ai/prompts/lea-coding";
 import { leaCliPrompt } from "@/lib/ai/prompts/lea-cli";
-import { browserActionTool, buildAdapterTool, shellTaskTool } from "@/lib/ai/tools/mode-tools";
+import {
+  browserActionTool,
+  browserUseTask,
+  buildAdapterTool,
+  shellTaskTool,
+} from "@/lib/ai/tools/mode-tools";
+import { deepResearchTool, shopResearchTool } from "@/lib/ai/tools/research";
 import { selectRoutedModel } from "@/lib/ai/routing";
 import type { Tool } from "ai";
 import type { ChatMessage } from "@/lib/types";
@@ -137,6 +143,13 @@ export async function createLeaAgent(
     if (!tools[name]) {
       tools[name] = manusTool;
     }
+  }
+
+  if (isToolEnabled("deepResearch")) {
+    tools.deepResearch = deepResearchTool;
+  }
+  if (isToolEnabled("shopResearch")) {
+    tools.shopResearch = shopResearchTool;
   }
 
   const modePrompt =

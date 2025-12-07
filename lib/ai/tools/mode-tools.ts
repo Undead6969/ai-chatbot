@@ -28,9 +28,8 @@ export const browserUseTask = tool({
   inputSchema: z.object({
     task: z.string().describe("High-level task, e.g., 'Open X, search Y, return titles'"),
     url: z.string().url().optional().describe("Optional starting URL"),
-    notes: z.string().optional().describe("Extra guidance, selectors, or constraints"),
   }),
-  async execute({ task, url, notes }) {
+  async execute({ task, url }) {
     const apiKey = process.env.BROWSER_USE_API_KEY;
     if (!apiKey) {
       return {
@@ -42,13 +41,11 @@ export const browserUseTask = tool({
       const client = new BrowserUseClient({ apiKey });
       const created = await client.tasks.createTask({
         task: url ? `${task} (start at ${url})` : task,
-        metadata: { notes },
       });
       const result = await created.complete();
       return {
         task,
         url,
-        notes,
         output: result.output,
       };
     } catch (error) {
@@ -77,14 +74,26 @@ export const shellTaskTool = tool({
       };
     }
     try {
-      const { execa } = await import("execa");
-      const result = await execa(base, command.split(" ").slice(1), {
-        cwd: workdir || process.cwd(),
-        timeout: 10_000,
-      });
+      const { execFile } = await import("node:child_process");
+      const cwd = workdir || process.cwd();
+      const args = command.split(" ").slice(1);
+      const result = await new Promise<{ stdout: string; stderr: string; exitCode: number }>(
+        (resolve, reject) => {
+          const child = execFile(base, args, { cwd, timeout: 10_000 }, (error, stdout, stderr) => {
+            if (error && typeof (error as any).code === "number") {
+              resolve({ stdout: stdout ?? "", stderr: stderr ?? String(error), exitCode: (error as any).code });
+            } else if (error) {
+              reject(error);
+            } else {
+              resolve({ stdout: stdout ?? "", stderr: stderr ?? "", exitCode: 0 });
+            }
+          });
+          child.on("error", reject);
+        },
+      );
       return {
         intent,
-        workdir: workdir || process.cwd(),
+        workdir: cwd,
         command,
         exitCode: result.exitCode,
         stdout: result.stdout,
@@ -109,30 +118,47 @@ export type AdapterConfig = {
   enabled?: boolean;
 };
 
-// Default placeholder adapters; these can be extended to real MCPs.
+// Default adapters; where possible we attempt a lightweight API call, else return guidance.
 const defaultAdapters: AdapterConfig[] = [
-  {
-    id: "google-drive",
-    name: "Google Drive",
-    description: "List or read docs from Drive (placeholder)",
-    needsApproval: true,
-  },
-  {
-    id: "notion",
-    name: "Notion",
-    description: "Read/write Notion pages (placeholder)",
-    needsApproval: true,
-  },
+  { id: "notion", name: "Notion", description: "Read/write pages (needs NOTION_API_KEY)", needsApproval: true },
+  { id: "google-drive", name: "Google Drive", description: "List files (service account/OAuth required)", needsApproval: true },
+  { id: "canva", name: "Canva", description: "Design management (placeholder)", needsApproval: true },
+  { id: "figma", name: "Figma", description: "File/component lookup (needs FIGMA_TOKEN)", needsApproval: true },
+  { id: "vercel", name: "Vercel", description: "Projects/deployments (needs VERCEL_TOKEN)", needsApproval: true },
+  { id: "github", name: "GitHub", description: "Repos/issues (needs GITHUB_TOKEN)", needsApproval: true },
 ];
+
+async function handleGithub(action: string, payload: Record<string, unknown> | undefined) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    return { error: "Set GITHUB_TOKEN to enable GitHub adapter." };
+  }
+  const headers = { Authorization: `Bearer ${token}`, "User-Agent": "lea-agent" };
+  if (action === "listRepos") {
+    const res = await fetch("https://api.github.com/user/repos?per_page=20", { headers });
+    if (!res.ok) return { error: `GitHub listRepos failed: ${res.status} ${res.statusText}` };
+    const data = (await res.json()) as Array<{ name: string; full_name: string; html_url: string }>;
+    return { repos: data.map((r) => ({ name: r.name, fullName: r.full_name, url: r.html_url })) };
+  }
+  if (action === "repoInfo") {
+    const repo = typeof payload?.repo === "string" ? payload.repo : undefined;
+    if (!repo) return { error: "repo is required for repoInfo" };
+    const res = await fetch(`https://api.github.com/repos/${repo}`, { headers });
+    if (!res.ok) return { error: `GitHub repoInfo failed: ${res.status} ${res.statusText}` };
+    const data = await res.json();
+    return { name: data.name, fullName: data.full_name, url: data.html_url, description: data.description };
+  }
+  return { error: `Unsupported GitHub action: ${action}` };
+}
 
 export function buildAdapterTool(adapters: AdapterConfig[] = defaultAdapters) {
   return tool({
     description:
-      "Call an external adapter (MCP-style). Currently returns placeholders until real integrations are wired.",
+      "Call an external adapter (MCP-style). Some adapters return live data when tokens are set; others return guidance.",
     needsApproval: true,
     inputSchema: z.object({
       adapterId: z.string().describe("Adapter identifier"),
-      action: z.string().describe("Action to perform"),
+      action: z.string().describe("Action to perform (e.g., listRepos)"),
       payload: z.record(z.unknown()).optional().describe("Parameters for the action"),
     }),
     async execute({ adapterId, action, payload }) {
@@ -140,13 +166,32 @@ export function buildAdapterTool(adapters: AdapterConfig[] = defaultAdapters) {
       if (!adapter) {
         return { error: `Adapter ${adapterId} not found or disabled.` };
       }
-      return {
-        adapter: adapterId,
-        action,
-        payload,
-        message:
-          "Adapter call is stubbed. Wire this adapter to a real MCP/HTTP/SDK integration to activate.",
-      };
+
+      if (adapterId === "github") {
+        return handleGithub(action, payload as Record<string, unknown>);
+      }
+
+      if (adapterId === "notion") {
+        return { info: "Set NOTION_API_KEY and implement actions (e.g., listDatabases, queryPages)." };
+      }
+
+      if (adapterId === "google-drive") {
+        return { info: "Provide Drive credentials (service account/OAuth) and action (listFiles/readFile) to activate." };
+      }
+
+      if (adapterId === "figma") {
+        return { info: "Set FIGMA_TOKEN and implement actions (fileInfo/componentSearch) to activate." };
+      }
+
+      if (adapterId === "vercel") {
+        return { info: "Set VERCEL_TOKEN and implement actions (listProjects/deployments) to activate." };
+      }
+
+      if (adapterId === "canva") {
+        return { info: "Canva API requires app config; provide tokens and actions to activate." };
+      }
+
+      return { error: `Adapter ${adapterId} is stubbed. Provide credentials and implement the action.` };
     },
   });
 }

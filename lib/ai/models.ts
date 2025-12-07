@@ -21,6 +21,12 @@ export const chatModels: ChatModel[] = [
     description: "Uses advanced chain-of-thought reasoning for complex problems",
     provider: "xAI",
   },
+  {
+    id: "auto-model",
+    name: "Auto",
+    description: "Auto-pick model based on task (vision/reasoning/speed)",
+    provider: "System",
+  },
   // OpenAI Models
   {
     id: "openai-gpt-4o",
@@ -32,6 +38,24 @@ export const chatModels: ChatModel[] = [
     id: "openai-gpt-4o-mini",
     name: "GPT-4o Mini",
     description: "Fast and efficient OpenAI model",
+    provider: "OpenAI",
+  },
+  {
+    id: "openai-gpt-4.1",
+    name: "GPT-4.1",
+    description: "OpenAI GPT-4.1 model",
+    provider: "OpenAI",
+  },
+  {
+    id: "openai-gpt-4.1-mini",
+    name: "GPT-4.1 Mini",
+    description: "Fast GPT-4.1 mini model",
+    provider: "OpenAI",
+  },
+  {
+    id: "openai-o3-mini",
+    name: "o3-mini",
+    description: "OpenAI o3-mini reasoning model",
     provider: "OpenAI",
   },
   // Anthropic Claude Models
@@ -51,6 +75,18 @@ export const chatModels: ChatModel[] = [
     id: "anthropic-claude-haiku",
     name: "Claude Haiku",
     description: "Fast and efficient Anthropic model",
+    provider: "Anthropic",
+  },
+  {
+    id: "anthropic-claude-3.5-sonnet",
+    name: "Claude 3.5 Sonnet",
+    description: "Anthropic Claude 3.5 Sonnet latest",
+    provider: "Anthropic",
+  },
+  {
+    id: "anthropic-claude-3.5-haiku",
+    name: "Claude 3.5 Haiku",
+    description: "Anthropic Claude 3.5 Haiku fast",
     provider: "Anthropic",
   },
   // Google Gemini Models
