@@ -33,6 +33,14 @@ import { MultimodalInput } from "./multimodal-input";
 import { getChatHistoryPaginationKey } from "./sidebar-history";
 import { toast } from "./toast";
 import type { VisibilityType } from "./visibility-selector";
+import { CanvasPanel } from "./canvas-panel";
+
+function displayModelName(id: string) {
+  if (id === "google-gemini-2.5-flash") return "Lea 1.5 Lite";
+  if (id === "google-gemini-3-pro") return "Lea 2.0";
+  if (id === "auto-model" || id === "auto") return "Auto";
+  return id;
+}
 
 export function Chat({
   id,
@@ -204,9 +212,10 @@ export function Chat({
           selectedVisibilityType={initialVisibilityType}
         />
         <div className="px-3 pb-2 text-xs text-muted-foreground md:px-4">
-          <span className="font-semibold">Model</span>: {routeInfo.modelId} ({routeInfo.reason})
+          <span className="font-semibold">Model</span>: {displayModelName(routeInfo.modelId)} ({routeInfo.reason})
           <span className="ml-2 text-muted-foreground">Mode: {mode}</span>
         </div>
+        <CanvasPanel messages={messages} />
 
         <Messages
           addToolApprovalResponse={addToolApprovalResponse}

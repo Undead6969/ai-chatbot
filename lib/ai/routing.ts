@@ -21,10 +21,8 @@ export function selectRoutedModel({
   // Preserve explicit user choice except when default/basic model is chosen.
   const userChosen =
     requestedModelId &&
-    requestedModelId !== "chat-model" &&
     requestedModelId !== "auto" &&
-    requestedModelId !== "auto-model" &&
-    requestedModelId !== "google-gemini-3-pro";
+    requestedModelId !== "auto-model";
   if (userChosen) {
     return { modelId: requestedModelId, reason: "user-selected" };
   }
@@ -42,21 +40,21 @@ export function selectRoutedModel({
     textLength > 800 || reasoningKeywords.some((kw) => textParts.toLowerCase().includes(kw));
 
   if (forceMode === "browser") {
-    return { modelId: "openai-gpt-4o", reason: "browser-mode" };
+    return { modelId: "google-gemini-3-pro", reason: "browser-mode" };
   }
 
   if (forceMode === "cli") {
-    return { modelId: "openai-gpt-4.1", reason: "cli-mode" };
+    return { modelId: "google-gemini-3-pro", reason: "cli-mode" };
   }
 
   if (hasVisionInput) {
-    return { modelId: "openai-gpt-4o", reason: "vision-input" };
+    return { modelId: "google-gemini-3-pro", reason: "vision-input" };
   }
 
   if (hasReasoningSignal) {
-    return { modelId: "openai-gpt-4.1", reason: "reasoning" };
+    return { modelId: "google-gemini-3-pro", reason: "reasoning" };
   }
 
-  return { modelId: "google-gemini-2-flash", reason: "fast" };
+  return { modelId: "google-gemini-2.5-flash", reason: "fast" };
 }
 

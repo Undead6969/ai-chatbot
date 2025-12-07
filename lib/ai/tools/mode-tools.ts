@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { BrowserUseClient } from "browser-use-sdk";
+import { getApiKeyConfig } from "@/lib/db/queries";
 
 export const browserActionTool = tool({
   description:
@@ -128,12 +129,32 @@ const defaultAdapters: AdapterConfig[] = [
   { id: "github", name: "GitHub", description: "Repos/issues (needs GITHUB_TOKEN)", needsApproval: true },
 ];
 
-async function handleGithub(action: string, payload: Record<string, unknown> | undefined) {
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    return { error: "Set GITHUB_TOKEN to enable GitHub adapter." };
+async function getAdapterToken(adapterId: string, envVar?: string) {
+  const envToken = envVar ? process.env[envVar] : undefined;
+  if (envToken) {
+    return { token: envToken, source: "env" as const };
   }
-  const headers = { Authorization: `Bearer ${token}`, "User-Agent": "lea-agent" };
+  const stored = await getApiKeyConfig({ provider: `adapter-${adapterId}` });
+  if (stored?.apiKey) {
+    try {
+      const parsed = JSON.parse(stored.apiKey) as { accessToken?: string; refreshToken?: string; token?: string };
+      const token = parsed.accessToken || parsed.token;
+      if (token) {
+        return { token, source: "db" as const, meta: parsed };
+      }
+    } catch (_error) {
+      return { token: stored.apiKey, source: "db" as const };
+    }
+  }
+  return null;
+}
+
+async function handleGithub(action: string, payload: Record<string, unknown> | undefined) {
+  const tokenInfo = await getAdapterToken("github", "GITHUB_TOKEN");
+  if (!tokenInfo?.token) {
+    return { error: "Set GITHUB_TOKEN or connect GitHub via OAuth to enable GitHub adapter." };
+  }
+  const headers = { Authorization: `Bearer ${tokenInfo.token}`, "User-Agent": "lea-agent" };
   if (action === "listRepos") {
     const res = await fetch("https://api.github.com/user/repos?per_page=20", { headers });
     if (!res.ok) return { error: `GitHub listRepos failed: ${res.status} ${res.statusText}` };
@@ -171,27 +192,47 @@ export function buildAdapterTool(adapters: AdapterConfig[] = defaultAdapters) {
         return handleGithub(action, payload as Record<string, unknown>);
       }
 
-      if (adapterId === "notion") {
-        return { info: "Set NOTION_API_KEY and implement actions (e.g., listDatabases, queryPages)." };
-      }
+  if (adapterId === "notion") {
+    const notionToken = await getAdapterToken("notion", "NOTION_API_KEY");
+    if (!notionToken?.token) {
+      return { info: "Connect Notion via OAuth or set NOTION_API_KEY, then implement actions like listDatabases/queryPages." };
+    }
+    return { info: "Notion token available. Implement actions (listDatabases/queryPages) to activate live calls." };
+  }
 
-      if (adapterId === "google-drive") {
-        return { info: "Provide Drive credentials (service account/OAuth) and action (listFiles/readFile) to activate." };
-      }
+  if (adapterId === "google-drive") {
+    const driveToken = await getAdapterToken("google-drive");
+    if (!driveToken?.token) {
+      return { info: "Connect Google Drive via OAuth to listFiles/readFile." };
+    }
+    return { info: "Google Drive token available. Implement listFiles/readFile to activate live calls." };
+  }
 
-      if (adapterId === "figma") {
-        return { info: "Set FIGMA_TOKEN and implement actions (fileInfo/componentSearch) to activate." };
-      }
+  if (adapterId === "figma") {
+    const figmaToken = await getAdapterToken("figma", "FIGMA_TOKEN");
+    if (!figmaToken?.token) {
+      return { info: "Connect Figma via OAuth or set FIGMA_TOKEN to enable fileInfo/componentSearch." };
+    }
+    return { info: "Figma token available. Implement fileInfo/componentSearch to activate live calls." };
+  }
 
-      if (adapterId === "vercel") {
-        return { info: "Set VERCEL_TOKEN and implement actions (listProjects/deployments) to activate." };
-      }
+  if (adapterId === "vercel") {
+    const vercelToken = await getAdapterToken("vercel", "VERCEL_TOKEN");
+    if (!vercelToken?.token) {
+      return { info: "Connect Vercel via OAuth or set VERCEL_TOKEN to enable listProjects/deployments." };
+    }
+    return { info: "Vercel token available. Implement listProjects/deployments to activate live calls." };
+  }
 
-      if (adapterId === "canva") {
-        return { info: "Canva API requires app config; provide tokens and actions to activate." };
-      }
+  if (adapterId === "canva") {
+    const canvaToken = await getAdapterToken("canva");
+    if (!canvaToken?.token) {
+      return { info: "Connect Canva via OAuth to enable design actions (API app config required)." };
+    }
+    return { info: "Canva token available. Implement design actions to activate live calls." };
+  }
 
-      return { error: `Adapter ${adapterId} is stubbed. Provide credentials and implement the action.` };
+  return { error: `Adapter ${adapterId} is stubbed. Provide credentials and implement the action.` };
     },
   });
 }

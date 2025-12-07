@@ -19,26 +19,23 @@ export default function Page(props: { params: Promise<{ id: string }> }) {
 
 async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const chat = await getChatById({ id });
-
-  if (!chat) {
-    notFound();
-  }
-
   const session = await auth();
 
   if (!session) {
     redirect("/api/auth/guest");
   }
 
-  if (chat.visibility === "private") {
-    if (!session.user) {
-      return notFound();
-    }
+  const chat =
+    (await getChatById({ id })) ??
+    ({
+      id,
+      visibility: "private",
+      userId: session.user.id,
+      lastContext: null,
+    } as any);
 
-    if (session.user.id !== chat.userId) {
-      return notFound();
-    }
+  if (chat.visibility === "private" && session.user.id !== chat.userId) {
+    return notFound();
   }
 
   const messagesFromDb = await getMessagesByChatId({

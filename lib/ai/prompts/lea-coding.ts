@@ -1,5 +1,3 @@
-"use server";
-
 export const leaCodingPrompt = `
 Coding mode (Cursor-inspired):
 - Plan before edits; keep diffs minimal and safe.

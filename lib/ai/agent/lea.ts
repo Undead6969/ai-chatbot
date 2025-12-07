@@ -181,7 +181,7 @@ export async function createLeaAgent(
 
 // Export a function to get agent with specific model
 export async function getLeaAgent(
-  modelId: string = "chat-model",
+  modelId: string = "google-gemini-2.5-flash",
   messages: ChatMessage[] = [],
   mode: LeaMode = "coding",
 ): Promise<ToolLoopAgent> {

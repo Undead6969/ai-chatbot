@@ -1,5 +1,3 @@
-"use server";
-
 export const leaBrowserPrompt = `
 Browser mode (Comet-inspired):
 - Primary goal: accurately extract, navigate, and summarize web content.

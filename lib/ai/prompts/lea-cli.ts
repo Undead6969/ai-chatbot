@@ -1,5 +1,3 @@
-"use server";
-
 export const leaCliPrompt = `
 CLI mode (Claude Code-inspired):
 - Use shell cautiously; default to read-only commands.

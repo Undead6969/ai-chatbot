@@ -89,6 +89,7 @@ function initializeProviders() {
       const { google } = googleModule;
       // Gemini 3 Pro (aliased to latest Pro until official 3 Pro id is available)
       languageModels["google-gemini-3-pro"] = google("gemini-1.5-pro", { apiKey: googleKey });
+      languageModels["google-gemini-2.5-flash"] = google("gemini-2.0-flash-exp", { apiKey: googleKey });
       languageModels["google-gemini-2-flash"] = google("gemini-2.0-flash-exp", { apiKey: googleKey });
       languageModels["google-gemini-1.5-pro"] = google("gemini-1.5-pro", { apiKey: googleKey });
       languageModels["google-gemini-1.5-flash"] = google("gemini-1.5-flash", { apiKey: googleKey });

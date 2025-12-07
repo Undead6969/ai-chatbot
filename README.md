@@ -23,7 +23,7 @@ pnpm dev
 ```
 
 ## Modes & Routing
-- Modes: Coding, Browser, CLI, Auto (selector in chat header). Auto routes by task signals (vision → GPT-4o, reasoning → GPT-4.1, fast/default → Gemini 2 Flash; CLI forced → GPT-4.1; Browser forced → GPT-4o).
+- Modes: Coding, Browser, CLI, Auto (selector in chat header). Auto routes between Lea 1.5 Lite (Gemini 2.5 Flash alias) for fast/default and Lea 2.0 (Gemini 3 Pro alias to 1.5 Pro) for vision/reasoning/CLI/browser tasks.
 - Prompts: Comet (browser), Cursor (coding), Claude Code (CLI), Lea system base.
 
 ## Tools
@@ -34,10 +34,16 @@ pnpm dev
 - Admin → Tools toggles enable/approval per tool.
 
 ## Models
-Included IDs: auto-model, xAI Grok, OpenAI (gpt-4o/4o-mini/4.1/4.1-mini/o3-mini), Anthropic (Opus, Sonnet, Haiku, 3.5 Sonnet/Haiku), Google (Gemini 3 Pro alias, 2.0 Flash, 1.5 Pro/Flash), Mistral (Large/Medium). Add keys to activate.
+- Lea 1.5 Lite → `google-gemini-2.5-flash` (alias to 2.0 flash exp)
+- Lea 2.0 → `google-gemini-3-pro` (alias to 1.5 Pro until 3 Pro GA)
+- Auto → routes between the above.
 
 ## Browser Use Cloud
-Install already added: `browser-use-sdk`. Set `BROWSER_USE_API_KEY`. Tool `browserUseTask` will run tasks via Browser Use Cloud API.
+Install already added: `browser-use-sdk`. Set `BROWSER_USE_API_KEY`. Tool `browserUseTask` will run tasks via Browser Use Cloud API (Chromium automation).
+
+## OAuth adapters
+- Start URL: `/api/oauth/<provider>/start` → redirects to provider.
+- Callback: `/api/oauth/<provider>/callback` stores tokens in DB for adapters (`adapter-<id>`). Providers wired: github, notion, google-drive, figma, vercel, canva. Set client credentials (e.g., `GITHUB_OAUTH_CLIENT_ID` / `_SECRET`, `GOOGLE_DRIVE_CLIENT_ID` / `_SECRET`, etc.).
 
 ## Deployment (Vercel)
 - Ensure env vars set in Vercel: `POSTGRES_URL`, auth vars, model keys, optional `BROWSER_USE_API_KEY`, `GITHUB_TOKEN`.
