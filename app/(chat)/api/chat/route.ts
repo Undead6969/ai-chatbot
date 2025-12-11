@@ -28,6 +28,7 @@ import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { getLeaAgent } from "@/lib/ai/agent/lea";
+import { getLemonAgent } from "@/lib/ai/agent/lemon";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
@@ -188,11 +189,12 @@ export async function POST(request: Request) {
       ],
     });
 
-    // Use Lea Agent if enabled (check environment variable or use by default)
+    // Use Lea or Lemon Agent if enabled (check environment variable or use by default)
     const useLeaAgent = process.env.USE_LEA_AGENT !== "false"; // Default to true
+    const useLemonAgent = process.env.USE_LEMON_AGENT === "true";
 
     // Use agent for all models, not just chat-model
-    if (useLeaAgent) {
+    if (useLeaAgent || useLemonAgent) {
       try {
         // Convert messages to agent format (simple text extraction)
         const agentMessages = uiMessages.map((msg) => {
@@ -207,7 +209,16 @@ export async function POST(request: Request) {
           };
         });
 
-        const agent = await getLeaAgent(selectedChatModel, agentMessages, mode);
+        const lastUserText =
+          message.parts.find((part) => part.type === "text")?.text || "";
+
+        const agent = useLemonAgent
+          ? getLemonAgent({
+              modelId: selectedChatModel,
+              goal: lastUserText,
+              executorCapabilities: "search, browser, terminal, write_code",
+            })
+          : await getLeaAgent(selectedChatModel, agentMessages, mode);
 
         // Use createAgentUIStreamResponse for AI SDK 6
         return createAgentUIStreamResponse({

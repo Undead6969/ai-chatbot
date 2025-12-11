@@ -6,7 +6,7 @@ import { memo } from "react";
 import { useWindowSize } from "usehooks-ts";
 import { SidebarToggle } from "@/components/sidebar-toggle";
 import { Button } from "@/components/ui/button";
-import { PlusIcon, VercelIcon } from "./icons";
+import { PlusIcon } from "./icons";
 import { useSidebar } from "./ui/sidebar";
 import { VisibilitySelector, type VisibilityType } from "./visibility-selector";
 
@@ -29,17 +29,25 @@ function PureChatHeader({
   const { width: windowWidth } = useWindowSize();
 
   return (
-    <header className="sticky top-0 flex items-center gap-2 bg-background px-2 py-1.5 md:px-2">
-      <SidebarToggle />
+    <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border/60 bg-gradient-to-r from-[#0c0c0e] via-[#0f1115] to-[#0c0c0e] px-3 py-2 md:px-4">
+      <div className="flex items-center gap-2">
+        <SidebarToggle />
+        <div className="flex items-center gap-2 rounded-full border border-border/80 bg-black/40 px-3 py-1">
+          <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+          <span className="text-xs uppercase tracking-[0.08em] text-muted-foreground">
+            Lea
+          </span>
+        </div>
+      </div>
 
       {(!open || windowWidth < 768) && (
         <Button
-          className="order-2 ml-auto h-8 px-2 md:order-1 md:ml-0 md:h-fit md:px-2"
+          className="order-2 ml-auto h-8 rounded-full border border-border/80 bg-black/40 px-3 text-xs font-medium md:order-1 md:ml-0 md:h-fit md:px-3"
           onClick={() => {
             router.push("/");
             router.refresh();
           }}
-          variant="outline"
+          variant="ghost"
         >
           <PlusIcon />
           <span className="md:sr-only">New Chat</span>
@@ -54,8 +62,8 @@ function PureChatHeader({
         />
       )}
 
-      <div className="order-4 ml-auto flex items-center gap-2 rounded-md border px-2 py-1 text-xs md:order-3">
-        <span className="text-muted-foreground">Mode</span>
+      <div className="order-4 ml-auto flex items-center gap-2 rounded-full border border-border/80 bg-black/40 px-3 py-1 text-xs md:order-3">
+        <span className="text-muted-foreground">Mode:</span>
         <select
           className="bg-transparent text-foreground outline-none"
           value={mode}
@@ -67,20 +75,6 @@ function PureChatHeader({
           <option value="cli">CLI</option>
         </select>
       </div>
-
-      <Button
-        asChild
-        className="order-3 hidden bg-zinc-900 px-2 text-zinc-50 hover:bg-zinc-800 md:ml-auto md:flex md:h-fit dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-      >
-        <Link
-          href={"https://vercel.com/templates/next.js/nextjs-ai-chatbot"}
-          rel="noreferrer"
-          target="_noblank"
-        >
-          <VercelIcon size={16} />
-          Deploy with Vercel
-        </Link>
-      </Button>
     </header>
   );
 }

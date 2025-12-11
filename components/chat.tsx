@@ -34,6 +34,7 @@ import { getChatHistoryPaginationKey } from "./sidebar-history";
 import { toast } from "./toast";
 import type { VisibilityType } from "./visibility-selector";
 import { CanvasPanel } from "./canvas-panel";
+import { WelcomeView } from "./lemon/WelcomeView";
 
 function displayModelName(id: string) {
   if (id === "google-gemini-2.5-flash") return "Lea 1.5 Lite";
@@ -50,6 +51,7 @@ export function Chat({
   isReadonly,
   autoResume,
   initialLastContext,
+  showLemonHome = false,
 }: {
   id: string;
   initialMessages: ChatMessage[];
@@ -58,6 +60,7 @@ export function Chat({
   isReadonly: boolean;
   autoResume: boolean;
   initialLastContext?: AppUsage;
+  showLemonHome?: boolean;
 }) {
   const router = useRouter();
 
@@ -153,6 +156,7 @@ export function Chat({
       mutate(unstable_serialize(getChatHistoryPaginationKey));
     },
     onError: (error) => {
+      console.error("Chat error:", error);
       if (error instanceof ChatSDKError) {
         // Check if it's a credit card error
         if (
@@ -162,9 +166,15 @@ export function Chat({
         } else {
           toast({
             type: "error",
-            description: error.message,
+            description: error.message || "Failed to send message. Please try again.",
           });
         }
+      } else {
+        // Don't reset on error - keep the message in the UI
+        toast({
+          type: "error",
+          description: error instanceof Error ? error.message : "Failed to send message. Please try again.",
+        });
       }
     },
   });
@@ -201,56 +211,114 @@ export function Chat({
     setMessages,
   });
 
+  // Show Lemon home if enabled and no messages
+  const showHome = showLemonHome && messages.length === 0;
+
   return (
     <>
-      <div className="overscroll-behavior-contain flex h-dvh min-w-0 touch-pan-y flex-col bg-background">
-        <ChatHeader
-          chatId={id}
-          isReadonly={isReadonly}
+      {showHome ? (
+        <WelcomeView
+          onSendMessage={(msg) => {
+            // Extract modelId and mode from metadata if present
+            const metadata = (msg as any).metadata;
+            if (metadata?.modelId) {
+              setCurrentModelId(metadata.modelId);
+              currentModelIdRef.current = metadata.modelId;
+            }
+            if (metadata?.mode) {
+              setMode(metadata.mode);
+            }
+            // Update URL to chat page
+            window.history.pushState({}, "", `/chat/${id}`);
+            // Send the message (without metadata)
+            // Don't optimistically add - useChat hook will handle it
+            const { metadata: _, ...messageToSend } = msg as any;
+            sendMessage(messageToSend);
+          }}
+          selectedModelId={currentModelId}
+          onModelChange={setCurrentModelId}
           mode={mode}
           onModeChange={setMode}
-          selectedVisibilityType={initialVisibilityType}
         />
-        <div className="px-3 pb-2 text-xs text-muted-foreground md:px-4">
-          <span className="font-semibold">Model</span>: {displayModelName(routeInfo.modelId)} ({routeInfo.reason})
-          <span className="ml-2 text-muted-foreground">Mode: {mode}</span>
-        </div>
-        <CanvasPanel messages={messages} />
+      ) : (
+        <div className="overscroll-behavior-contain flex min-h-dvh min-w-0 touch-pan-y flex-col bg-[#050607] text-foreground">
+          <ChatHeader
+            chatId={id}
+            isReadonly={isReadonly}
+            mode={mode}
+            onModeChange={setMode}
+            selectedVisibilityType={initialVisibilityType}
+          />
 
-        <Messages
-          addToolApprovalResponse={addToolApprovalResponse}
-          chatId={id}
-          isArtifactVisible={isArtifactVisible}
-          isReadonly={isReadonly}
-          messages={messages}
-          regenerate={regenerate}
-          selectedModelId={currentModelId}
-          setMessages={setMessages}
-          status={status}
-          votes={votes}
-        />
+          <div className="w-full border-b border-border/60 bg-black/40">
+            <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 rounded-full border border-border/80 bg-zinc-900/60 px-3 py-1">
+                <span className="text-[11px] font-semibold text-foreground">
+                  Model
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {displayModelName(routeInfo.modelId)} · {routeInfo.reason}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 rounded-full border border-border/80 bg-zinc-900/60 px-3 py-1">
+                <span className="text-[11px] font-semibold text-foreground">
+                  Mode
+                </span>
+                <span className="text-[11px] text-muted-foreground">{mode}</span>
+              </div>
+              <div className="flex-1" />
+              <div className="flex items-center gap-2 rounded-full border border-border/80 bg-zinc-900/60 px-3 py-1">
+                <span className="text-[11px] font-semibold text-foreground">
+                  Canvas
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Pin drafts & research snippets
+                </span>
+              </div>
+            </div>
+          </div>
 
-        <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
-          {!isReadonly && (
-            <MultimodalInput
-              attachments={attachments}
-              chatId={id}
-              input={input}
-              messages={messages}
-              onModelChange={setCurrentModelId}
-              selectedModelId={currentModelId}
-              selectedVisibilityType={visibilityType}
-              sendMessage={sendMessage}
-              setAttachments={setAttachments}
-              setInput={setInput}
-              setMessages={setMessages}
-              status={status}
-              stop={stop}
-              usage={usage}
-            />
-          )}
+          <div className="flex-1">
+            <div className="mx-auto w-full max-w-5xl px-3 pb-6 pt-3 sm:px-4 lg:px-6">
+              <CanvasPanel messages={messages} />
+
+              <Messages
+                addToolApprovalResponse={addToolApprovalResponse}
+                chatId={id}
+                isArtifactVisible={isArtifactVisible}
+                isReadonly={isReadonly}
+                messages={messages}
+                regenerate={regenerate}
+                selectedModelId={currentModelId}
+                setMessages={setMessages}
+                status={status}
+                votes={votes}
+              />
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 z-10 mx-auto flex w-full max-w-5xl gap-2 border-t border-border/60 bg-[#050607]/90 px-3 pb-4 pt-3 backdrop-blur sm:px-4 lg:px-6">
+            {!isReadonly && (
+              <MultimodalInput
+                attachments={attachments}
+                chatId={id}
+                input={input}
+                messages={messages}
+                onModelChange={setCurrentModelId}
+                selectedModelId={currentModelId}
+                selectedVisibilityType={visibilityType}
+                sendMessage={sendMessage}
+                setAttachments={setAttachments}
+                setInput={setInput}
+                setMessages={setMessages}
+                status={status}
+                stop={stop}
+                usage={usage}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <Artifact
         attachments={attachments}

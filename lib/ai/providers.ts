@@ -27,7 +27,7 @@ export function updateApiKeyCache(provider: string, apiKey: string) {
 }
 
 // Get API key from cache or environment
-function getApiKey(provider: string, envVar: string): string | null {
+export function getApiKey(provider: string, envVar: string): string | null {
   // Check cache first (updated by admin)
   if (apiKeyCache[provider]) {
     return apiKeyCache[provider];
@@ -81,18 +81,41 @@ function initializeProviders() {
     }
   }
 
-  // Google Gemini Models
-  const googleKey = getApiKey("google", "GOOGLE_GENERATIVE_AI_API_KEY");
+  // Google Gemini Models - Use provided keys with fallback
+  const googleKeyPrimary = "AIzaSyB73ozhhHZpLJEvSvktnEMgjRBv8hfhEng";
+  const googleKeyBackup = "AIzaSyCpMnmF88RfOnC_LoFDor-kD6-HQJFECpw";
+  const googleKey = getApiKey("google", "GOOGLE_GENERATIVE_AI_API_KEY") || googleKeyPrimary;
+  
   if (googleKey) {
     try {
       const googleModule = require("@ai-sdk/google");
       const { google } = googleModule;
-      // Gemini 3 Pro (aliased to latest Pro until official 3 Pro id is available)
-      languageModels["google-gemini-3-pro"] = google("gemini-1.5-pro", { apiKey: googleKey });
-      languageModels["google-gemini-2.5-flash"] = google("gemini-2.0-flash-exp", { apiKey: googleKey });
-      languageModels["google-gemini-2-flash"] = google("gemini-2.0-flash-exp", { apiKey: googleKey });
-      languageModels["google-gemini-1.5-pro"] = google("gemini-1.5-pro", { apiKey: googleKey });
-      languageModels["google-gemini-1.5-flash"] = google("gemini-1.5-flash", { apiKey: googleKey });
+      // Try primary key first, fallback to backup if needed
+      let activeKey = googleKey;
+      try {
+        // Gemini 3 Pro (aliased to latest Pro until official 3 Pro id is available)
+        languageModels["google-gemini-3-pro"] = google("gemini-1.5-pro", { apiKey: activeKey });
+        languageModels["google-gemini-2.5-flash"] = google("gemini-2.0-flash-exp", { apiKey: activeKey });
+        languageModels["google-gemini-2-flash"] = google("gemini-2.0-flash-exp", { apiKey: activeKey });
+        languageModels["google-gemini-1.5-pro"] = google("gemini-1.5-pro", { apiKey: activeKey });
+        languageModels["google-gemini-1.5-flash"] = google("gemini-1.5-flash", { apiKey: activeKey });
+        // Also set as default models
+        languageModels["chat-model"] = google("gemini-2.0-flash-exp", { apiKey: activeKey });
+        languageModels["title-model"] = google("gemini-2.0-flash-exp", { apiKey: activeKey });
+        languageModels["artifact-model"] = google("gemini-1.5-pro", { apiKey: activeKey });
+      } catch (primaryError) {
+        // Fallback to backup key
+        console.warn("Primary Gemini key failed, trying backup:", primaryError);
+        activeKey = googleKeyBackup;
+        languageModels["google-gemini-3-pro"] = google("gemini-1.5-pro", { apiKey: activeKey });
+        languageModels["google-gemini-2.5-flash"] = google("gemini-2.0-flash-exp", { apiKey: activeKey });
+        languageModels["google-gemini-2-flash"] = google("gemini-2.0-flash-exp", { apiKey: activeKey });
+        languageModels["google-gemini-1.5-pro"] = google("gemini-1.5-pro", { apiKey: activeKey });
+        languageModels["google-gemini-1.5-flash"] = google("gemini-1.5-flash", { apiKey: activeKey });
+        languageModels["chat-model"] = google("gemini-2.0-flash-exp", { apiKey: activeKey });
+        languageModels["title-model"] = google("gemini-2.0-flash-exp", { apiKey: activeKey });
+        languageModels["artifact-model"] = google("gemini-1.5-pro", { apiKey: activeKey });
+      }
     } catch (error) {
       console.warn("Google provider not available:", error);
     }

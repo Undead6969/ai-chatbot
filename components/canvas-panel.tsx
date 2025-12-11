@@ -15,7 +15,7 @@ function extractText(message: ChatMessage) {
 }
 
 export function CanvasPanel({ messages }: { messages: ChatMessage[] }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   const { assistantSnippets, latestSummary } = useMemo(() => {
     const assistants = messages.filter((m) => m.role === "assistant").slice(-6).reverse();

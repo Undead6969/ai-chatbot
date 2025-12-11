@@ -34,8 +34,22 @@ export async function fetchWithErrorHandlers(
     const response = await fetch(input, init);
 
     if (!response.ok) {
-      const { code, cause } = await response.json();
-      throw new ChatSDKError(code as ErrorCode, cause);
+      // Check if response has content before parsing JSON
+      const contentType = response.headers.get("content-type");
+      const text = await response.text();
+      
+      if (contentType?.includes("application/json") && text.trim()) {
+        try {
+          const { code, cause } = JSON.parse(text);
+          throw new ChatSDKError(code as ErrorCode, cause);
+        } catch (parseError) {
+          // If JSON parsing fails, throw a generic error
+          throw new ChatSDKError("offline:chat", text || "Request failed");
+        }
+      } else {
+        // Non-JSON error response or empty response
+        throw new ChatSDKError("offline:chat", text || `HTTP ${response.status}: ${response.statusText}`);
+      }
     }
 
     return response;

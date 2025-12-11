@@ -22,13 +22,18 @@ export async function generateTitleFromUserMessage({
 }: {
   message: UIMessage;
 }) {
-  const { text: title } = await generateText({
-    model: myProvider.languageModel("title-model"),
-    system: titlePrompt,
-    prompt: getTextFromMessage(message),
-  });
-
-  return title;
+  try {
+    const { text: title } = await generateText({
+      model: myProvider.languageModel("title-model"),
+      system: titlePrompt,
+      prompt: getTextFromMessage(message),
+    });
+    return title;
+  } catch (error) {
+    console.warn("Title generation failed, using fallback title", error);
+    const text = getTextFromMessage(message) || "New chat";
+    return text.slice(0, 80) || "New chat";
+  }
 }
 
 export async function deleteTrailingMessages({ id }: { id: string }) {

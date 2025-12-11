@@ -548,10 +548,9 @@ export async function getMessageCountByUserId({
 
     return stats?.count ?? 0;
   } catch (_error) {
-    throw new ChatSDKError(
-      "bad_request:database",
-      "Failed to get message count by user id"
-    );
+    console.warn("Failed to get message count by user id, defaulting to 0:", _error);
+    // Fallback to zero to keep chats working when DB is offline
+    return 0;
   }
 }
 
